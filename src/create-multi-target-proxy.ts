@@ -1,7 +1,18 @@
-import {getObjectTypedKeys, PartialAndUndefined, typedHasProperty} from '@augment-vir/common';
-import {RequireExactlyOne} from 'type-fest';
-import {createPrioritizedProperties} from '../prioritized-properties';
+import {check} from '@augment-vir/assert';
+import {
+    getObjectTypedKeys,
+    type AnyFunction,
+    type AnyObject,
+    type PartialWithUndefined,
+} from '@augment-vir/common';
+import {type RequireExactlyOne} from 'type-fest';
+import {createPrioritizedProperties} from './prioritized-properties.js';
 
+/**
+ * Options for creating a new proxy wrapper.
+ *
+ * @category Internal
+ */
 export type CreateProxyOptions<ProxyType> = {
     /**
      * Indicates if this proxy is meant to be callable, or, in other words, if this proxy is meant
@@ -22,26 +33,92 @@ export type CreateProxyOptions<ProxyType> = {
     initialTargets: ReadonlyArray<Partial<ProxyType>>;
 }>;
 
-export type ProxyTypeBase = object | Function;
+/**
+ * Base type for a proxy target.
+ *
+ * @category Internal
+ */
+export type ProxyTypeBase = AnyObject | AnyFunction;
 
+/**
+ * An interface for modifying a proxy after the fact.
+ *
+ * @category Main
+ */
 export type MultiTargetProxyModifier<ProxyType extends ProxyTypeBase> = {
+    /**
+     * Add a target to the internal list of prioritized targets. Since this will be a fallback
+     * target, a property from this target will only be used if no previously added target already
+     * has the property.
+     */
     addFallbackTarget(target: Partial<ProxyType>): void;
+    /**
+     * Add a target to the internal list of prioritized targets. Since this will be an override
+     * target, a property from this target will always be used unless a new override target with the
+     * same property is added or if the properties are modified on the proxy itself.
+     */
     addOverrideTarget(target: Partial<ProxyType>): void;
+    /** Remove the given target from the internal list of prioritized targets. */
     removeTarget(target: Partial<ProxyType>): boolean;
-    getAllTargets(): ReadonlyArray<unknown>;
+    /**
+     * Get a list of all internal targets, in priority order. This is mostly only useful for
+     * debugging purposes.
+     */
+    getAllTargets(): ReadonlyArray<Partial<ProxyType>>;
+    /**
+     * Add a new proxy handler. Since this will be an override handler, a method from this handler
+     * will always be used unless a new override handler with the same method is added or if the
+     * methods are modified on the handler object itself.
+     */
     addProxyHandlerOverride(handlerOverride: ProxyHandler<ProxyType>): void;
+    /**
+     * Add a new proxy handler. Since this will be a fallback handler, a method from this handler
+     * will only be used if no previously added override already has the method.
+     */
     addProxyHandlerFallback(handlerOverride: ProxyHandler<ProxyType>): void;
+    /** Remove the given proxy handler override from the internal list of proxy handler overrides. */
     removeProxyOverride(handlerOverride: ProxyHandler<ProxyType>): boolean;
-    getAllTargets(): ReadonlyArray<ProxyType>;
 };
 
+/**
+ * A proxy wrapper which allows performing multiple operations on the proxy to modify it after the
+ * fact (with `.proxyModifier`), such as merging multiple proxies together or adding new proxy
+ * handler methods.
+ *
+ * @category Main
+ */
 export type WrappedMultiTargetProxy<ProxyType extends ProxyTypeBase> = {
     proxy: ProxyType;
     proxyModifier: MultiTargetProxyModifier<ProxyType>;
 };
 
+/**
+ * Create an instance of {@link WrappedMultiTargetProxy} which can be used to merge multiple targets
+ * together or override proxy handler methods.
+ *
+ * @category Main
+ * @example
+ *
+ * ```ts
+ * import {createWrappedMultiTargetProxy} from 'proxy-vir';
+ *
+ * // something you imported from a 3rd party library that you want to wrap
+ * const importedThing = {
+ *     doThingA() {},
+ * };
+ *
+ * const thingWrapper = createWrappedMultiTargetProxy({
+ *     initialTarget: importedThing,
+ * });
+ *
+ * // add a new override
+ * thingWrapper.proxyModifier.addOverrideTarget({
+ *     doThingA() {},
+ * });
+ * ```
+ */
 export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
-    options?: PartialAndUndefined<CreateProxyOptions<ProxyType>> | undefined,
+    options?: PartialWithUndefined<CreateProxyOptions<ProxyType>> | undefined,
 ): WrappedMultiTargetProxy<ProxyType> {
     /** This target will always be used first. */
     const primaryTarget: any = options?.isCallable ? () => {} : {};
@@ -54,14 +131,14 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
 
     const proxyOverrides = createPrioritizedProperties<ProxyHandler<ProxyType>>();
 
-    const targetProperties = createPrioritizedProperties({
+    const targetProperties = createPrioritizedProperties<ProxyType>({
         initialList: [primaryTarget],
         /** This is set to 1 so that the primaryTarget above is never overridden. */
         overrideEntryPoint: 1,
         updateCallback(combinedObject) {
             Object.setPrototypeOf(combinedObject, prototype);
             deletedProperties.forEach((property) => {
-                delete combinedObject[property];
+                delete (combinedObject as AnyObject)[property];
             });
             if (!isExtensible && Object.isExtensible(combinedObject)) {
                 Object.preventExtensions(combinedObject);
@@ -73,12 +150,13 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
         ? {
               apply() {
                   if (proxyOverrides.combinedProperties.apply) {
+                      // eslint-disable-next-line @typescript-eslint/unbound-method
                       return proxyOverrides.combinedProperties.apply;
                   }
                   const firstCallableTarget =
                       targetProperties
                           .getCurrentList()
-                          .find((target) => typeof target === 'function') ?? primaryTarget;
+                          .find((target: unknown) => typeof target === 'function') ?? primaryTarget;
 
                   return firstCallableTarget();
               },
@@ -149,7 +227,7 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
             if (deletedProperties.has(property)) {
                 return false;
             }
-            return typedHasProperty(combinedTargets, property);
+            return check.hasKey(combinedTargets, property);
         },
         isExtensible(combinedTargets) {
             if (proxyOverrides.combinedProperties.isExtensible) {
@@ -213,23 +291,12 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
     });
 
     const proxyModifier: MultiTargetProxyModifier<ProxyType> = {
-        /**
-         * Add a target to the internal list of prioritized targets. Since this will be a fallback
-         * target, a property from this target will only be used if no previously added target
-         * already has the property.
-         */
         addFallbackTarget(target) {
             targetProperties.addFallback(target);
         },
-        /**
-         * Add a target to the internal list of prioritized targets. Since this will be an override
-         * target, a property from this target will always be used unless a new override target with
-         * the same property is added or if the properties are modified on the proxy itself.
-         */
         addOverrideTarget(target) {
             targetProperties.addOverride(target);
         },
-        /** Remove the given target from the internal list of prioritized targets. */
         removeTarget(target) {
             return targetProperties.removeEntry(target);
         },
@@ -242,10 +309,6 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
         removeProxyOverride(handlerOverride) {
             return proxyOverrides.removeEntry(handlerOverride);
         },
-        /**
-         * The list of internal prioritized targets, in priority order. This is mostly only useful
-         * for debugging purposes.
-         */
         getAllTargets() {
             return targetProperties.getCurrentList();
         },

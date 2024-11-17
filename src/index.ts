@@ -1,1 +1,1 @@
-export * from './proxy-vir/create-multi-target-proxy';
+export * from './create-multi-target-proxy.js';

@@ -1,9 +1,5 @@
-import {
-    PartialAndUndefined,
-    PropertyValueType,
-    getObjectTypedKeys,
-    typedHasProperty,
-} from '@augment-vir/common';
+import {check} from '@augment-vir/assert';
+import {getObjectTypedKeys, type PartialWithUndefined, type Values} from '@augment-vir/common';
 
 export type PriorityListInputs<EntryType> = {
     initialList: ReadonlyArray<EntryType>;
@@ -12,34 +8,30 @@ export type PriorityListInputs<EntryType> = {
 };
 
 function listToMapInit<EntryType>(
-    options?: Pick<PartialAndUndefined<PriorityListInputs<EntryType>>, 'initialList'>,
+    options?: Pick<PartialWithUndefined<PriorityListInputs<EntryType>>, 'initialList'>,
 ) {
     if (options?.initialList) {
-        return options.initialList
-            .map((initialEntry) => {
-                return getObjectTypedKeys(initialEntry).map(
-                    (key): [PropertyKey, PropertyValueType<EntryType>] => {
-                        return [
-                            key,
-                            initialEntry[key],
-                        ];
-                    },
-                );
-            })
-            .flat();
+        return options.initialList.flatMap((initialEntry) => {
+            return getObjectTypedKeys(initialEntry).map((key) => {
+                return [
+                    key,
+                    initialEntry[key],
+                ] as [PropertyKey, Values<EntryType>];
+            });
+        });
     }
 
     return [];
 }
 
 /**
- * Stores and allows updating of a list of entries from which a single object created. Properties
+ * Stores and allows updating of a list of entries from which a single object is created. Properties
  * for the single object are chosen from the entries by the entry order in the list.
  */
 export function createPrioritizedProperties<EntryType>(
-    options?: PartialAndUndefined<PriorityListInputs<EntryType>>,
+    options?: PartialWithUndefined<PriorityListInputs<EntryType>>,
 ) {
-    const list: EntryType[] = [...(options?.initialList ?? [])];
+    const list: Partial<EntryType>[] = [...(options?.initialList ?? [])];
 
     const combinedProperties: EntryType = Object.fromEntries(listToMapInit(options)) as any;
 
@@ -52,7 +44,7 @@ export function createPrioritizedProperties<EntryType>(
         list.forEach((entry) => {
             getObjectTypedKeys(entry).forEach((property) => {
                 // only save the property if it hasn't been saved already
-                if (!typedHasProperty(combinedProperties, property)) {
+                if (!check.hasKey(combinedProperties, property)) {
                     (combinedProperties as any)[property] = entry[property];
                 }
             });
@@ -68,16 +60,16 @@ export function createPrioritizedProperties<EntryType>(
          * object directly.
          */
         combinedProperties,
-        addOverride(entry: EntryType) {
+        addOverride(entry: Partial<EntryType>) {
             list.splice(options?.overrideEntryPoint ?? 0, 0, entry);
             updateObject();
         },
-        addFallback(entry: EntryType) {
+        addFallback(entry: Partial<EntryType>) {
             list.push(entry);
             updateObject();
         },
         /** Return value indicates if the given entry was removed or not. */
-        removeEntry(entry: EntryType): boolean {
+        removeEntry(entry: Partial<EntryType>): boolean {
             const entryIndex = list.indexOf(entry);
 
             if (entryIndex === -1) {
@@ -90,7 +82,7 @@ export function createPrioritizedProperties<EntryType>(
         forceUpdate() {
             updateObject();
         },
-        getCurrentList(): ReadonlyArray<EntryType> {
+        getCurrentList(): ReadonlyArray<Partial<EntryType>> {
             return [...list];
         },
     };

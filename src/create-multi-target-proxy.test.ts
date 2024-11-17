@@ -1,6 +1,6 @@
-import {assert} from '@open-wc/testing';
-import {assertTypeOf} from 'run-time-assertions';
-import {createWrappedMultiTargetProxy} from './create-multi-target-proxy';
+import {assert} from '@augment-vir/assert';
+import {describe, it} from '@augment-vir/test';
+import {createWrappedMultiTargetProxy} from './create-multi-target-proxy.js';
 
 describe(createWrappedMultiTargetProxy.name, () => {
     const exampleInitialTarget = {
@@ -11,11 +11,13 @@ describe(createWrappedMultiTargetProxy.name, () => {
     };
 
     it('has proper types', () => {
-        assertTypeOf(
-            createWrappedMultiTargetProxy({
-                initialTarget: exampleInitialTarget,
-            }).proxy,
-        ).toEqualTypeOf(exampleInitialTarget);
+        assert
+            .tsType(
+                createWrappedMultiTargetProxy({
+                    initialTarget: exampleInitialTarget,
+                }).proxy,
+            )
+            .equals(exampleInitialTarget);
     });
 
     it('handles new fallback targets', () => {
@@ -44,7 +46,7 @@ describe(createWrappedMultiTargetProxy.name, () => {
         assert.isUndefined(myProxy.proxy.b);
         assert.isUndefined(myProxy.proxy.c);
         assert.isUndefined(myProxy.proxy.d);
-        assert.strictEqual(myProxy.proxy.a, override.a);
+        assert.strictEquals(myProxy.proxy.a, override.a);
     });
 
     it('handles proxy overrides', () => {
@@ -52,7 +54,7 @@ describe(createWrappedMultiTargetProxy.name, () => {
             initialTarget: {a: ''},
         });
 
-        const dummyValue = {};
+        const dummyValue = {} as any;
 
         myProxy.proxyModifier.addProxyHandlerOverride({
             get() {
@@ -60,9 +62,9 @@ describe(createWrappedMultiTargetProxy.name, () => {
             },
         });
 
-        assert.strictEqual(myProxy.proxy.a, dummyValue);
-        assert.strictEqual(myProxy.proxy.b, dummyValue);
-        assert.strictEqual(myProxy.proxy.c, dummyValue);
-        assert.strictEqual(myProxy.proxy.d, dummyValue);
+        assert.strictEquals(myProxy.proxy.a, dummyValue);
+        assert.strictEquals(myProxy.proxy.b, dummyValue);
+        assert.strictEquals(myProxy.proxy.c, dummyValue);
+        assert.strictEquals(myProxy.proxy.d, dummyValue);
     });
 });
