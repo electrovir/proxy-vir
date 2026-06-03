@@ -22,10 +22,14 @@ describe(createWrappedMultiTargetProxy.name, () => {
 
     it('handles new fallback targets', () => {
         const myProxy = createWrappedMultiTargetProxy<typeof exampleInitialTarget>({
-            initialTarget: {a: ''},
+            initialTarget: {
+                a: '',
+            },
         });
 
-        myProxy.proxyModifier.addFallbackTarget({b: 'yo'});
+        myProxy.proxyModifier.addFallbackTarget({
+            b: 'yo',
+        });
 
         assert.isDefined(myProxy.proxy.a);
         assert.isDefined(myProxy.proxy.b);
@@ -35,10 +39,14 @@ describe(createWrappedMultiTargetProxy.name, () => {
 
     it('handles new override targets', () => {
         const myProxy = createWrappedMultiTargetProxy<typeof exampleInitialTarget>({
-            initialTarget: {a: ''},
+            initialTarget: {
+                a: '',
+            },
         });
 
-        const override = {a: 'yo'};
+        const override = {
+            a: 'yo',
+        };
 
         myProxy.proxyModifier.addOverrideTarget(override);
 
@@ -51,7 +59,9 @@ describe(createWrappedMultiTargetProxy.name, () => {
 
     it('handles proxy overrides', () => {
         const myProxy = createWrappedMultiTargetProxy<typeof exampleInitialTarget>({
-            initialTarget: {a: ''},
+            initialTarget: {
+                a: '',
+            },
         });
 
         const dummyValue = {} as any;

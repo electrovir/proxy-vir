@@ -172,8 +172,7 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
                     property,
                     attributes,
                 );
-            }
-            if (!isExtensible) {
+            } else if (!isExtensible) {
                 return false;
             }
             deletedProperties.delete(property);
@@ -184,8 +183,7 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
         deleteProperty(combinedTargets, property) {
             if (proxyOverrides.combinedProperties.deleteProperty) {
                 return proxyOverrides.combinedProperties.deleteProperty(combinedTargets, property);
-            }
-            if (!isExtensible) {
+            } else if (!isExtensible) {
                 return false;
             }
             deletedProperties.add(property);
@@ -194,8 +192,7 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
         get(combinedTargets, property, receiver) {
             if (proxyOverrides.combinedProperties.get) {
                 return proxyOverrides.combinedProperties.get(combinedTargets, property, receiver);
-            }
-            if (deletedProperties.has(property)) {
+            } else if (deletedProperties.has(property)) {
                 return undefined;
             }
 
@@ -207,8 +204,7 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
                     combinedTargets,
                     property,
                 );
-            }
-            if (deletedProperties.has(property)) {
+            } else if (deletedProperties.has(property)) {
                 return undefined;
             }
 
@@ -223,8 +219,7 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
         has(combinedTargets, property) {
             if (proxyOverrides.combinedProperties.has) {
                 return proxyOverrides.combinedProperties.has(combinedTargets, property);
-            }
-            if (deletedProperties.has(property)) {
+            } else if (deletedProperties.has(property)) {
                 return false;
             }
             return check.hasKey(combinedTargets, property);
@@ -261,8 +256,7 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
                     newValue,
                     receiver,
                 );
-            }
-            if (!isExtensible) {
+            } else if (!isExtensible) {
                 return false;
             }
 
@@ -278,8 +272,7 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
                     combinedTargets,
                     newPrototype,
                 );
-            }
-            if (!isExtensible) {
+            } else if (!isExtensible) {
                 return false;
             }
 

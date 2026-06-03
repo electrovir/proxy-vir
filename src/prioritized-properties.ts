@@ -16,7 +16,10 @@ function listToMapInit<EntryType>(
                 return [
                     key,
                     initialEntry[key],
-                ] as [PropertyKey, Values<EntryType>];
+                ] as [
+                    PropertyKey,
+                    Values<EntryType>,
+                ];
             });
         });
     }
