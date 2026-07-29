@@ -4,8 +4,8 @@ import {
     type AnyFunction,
     type AnyObject,
     type PartialWithUndefined,
+    type RequireExactlyOne,
 } from '@augment-vir/common';
-import {type RequireExactlyOne} from 'type-fest';
 import {createPrioritizedProperties} from './prioritized-properties.js';
 
 /**
@@ -194,9 +194,9 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
                 return proxyOverrides.combinedProperties.get(combinedTargets, property, receiver);
             } else if (deletedProperties.has(property)) {
                 return undefined;
+            } else {
+                return combinedTargets[property];
             }
-
-            return combinedTargets[property];
         },
         getOwnPropertyDescriptor(combinedTargets, property) {
             if (proxyOverrides.combinedProperties.getOwnPropertyDescriptor) {
@@ -206,9 +206,9 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
                 );
             } else if (deletedProperties.has(property)) {
                 return undefined;
+            } else {
+                return Object.getOwnPropertyDescriptor(combinedTargets, property);
             }
-
-            return Object.getOwnPropertyDescriptor(combinedTargets, property);
         },
         getPrototypeOf(combinedTargets) {
             if (proxyOverrides.combinedProperties.getPrototypeOf) {
@@ -221,8 +221,9 @@ export function createWrappedMultiTargetProxy<ProxyType extends ProxyTypeBase>(
                 return proxyOverrides.combinedProperties.has(combinedTargets, property);
             } else if (deletedProperties.has(property)) {
                 return false;
+            } else {
+                return check.hasKey(combinedTargets, property);
             }
-            return check.hasKey(combinedTargets, property);
         },
         isExtensible(combinedTargets) {
             if (proxyOverrides.combinedProperties.isExtensible) {
